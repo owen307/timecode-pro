@@ -1,0 +1,20 @@
+Unknown JSON field: "draft"
+Available fields:
+  apiUrl
+  assets
+  author
+  body
+  createdAt
+  databaseId
+  id
+  isDraft
+  isImmutable
+  isPrerelease
+  name
+  publishedAt
+  tagName
+  tarballUrl
+  targetCommitish
+  uploadUrl
+  url
+  zipballUrl
