@@ -7,34 +7,34 @@ on:
 
 permissions:
   contents: write
-  issues: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Download the exact APK
         run: |
           curl -fL --retry 5 --retry-delay 2 -o timecode-pro-1.1.0-arm64-debug.apk "https://litter.catbox.moe/xyagsw.apk"
           echo "e82d30bf0d334ea4f2666048a741db02c0db335d6679512d2f46114c09231953  timecode-pro-1.1.0-arm64-debug.apk" | sha256sum -c -
-      - name: Create GitHub release and upload the APK
+      - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set +e
-          gh release view v1.1.0 --repo owen307/timecode-pro >/tmp/release-out.txt 2>&1
-          if [ $? -ne 0 ]; then
-            gh release create v1.1.0 --repo owen307/timecode-pro --title "Timecode Pro 1.1.0" --notes "Arm64 debug APK. package com.timecodepro.app. versionName 1.1.0, versionCode 2. sha256 e82d30bf0d334ea4f2666048a741db02c0db335d6679512d2f46114c09231953" > /tmp/release-out.txt 2>&1
-            code=$?
-            if [ "$code" -ne 0 ]; then
-              gh issue create --repo owen307/timecode-pro --title "release create failed" --body-file /tmp/release-out.txt || true
-              exit "$code"
-            fi
+          gh release view v1.1.0 --repo owen307/timecode-pro --json id,draft,tagName,url,uploadUrl,assets > release-view.json 2> release-view.err
+          if [ ! -s release-view.json ]; then
+            gh release create v1.1.0 --repo owen307/timecode-pro --title "Timecode Pro 1.1.0" --notes "Arm64 debug APK. package com.timecodepro.app. versionName 1.1.0, versionCode 2. sha256 e82d30bf0d334ea4f2666048a741db02c0db335d6679512d2f46114c09231953" > release-create.txt 2>&1
           fi
-          gh release upload v1.1.0 timecode-pro-1.1.0-arm64-debug.apk --repo owen307/timecode-pro --clobber > /tmp/release-out.txt 2>&1
-          code=$?
-          cat /tmp/release-out.txt
-          if [ "$code" -ne 0 ]; then
-            gh issue create --repo owen307/timecode-pro --title "release upload failed" --body-file /tmp/release-out.txt || true
-          fi
-          exit "$code"
+          gh api -X PATCH repos/owen307/timecode-pro/releases/402704819 -f draft=false > release-publish.txt 2>&1
+          pub=$?
+          echo "publish_exit=$pub" >> release-publish.txt
+          gh release upload v1.1.0 timecode-pro-1.1.0-arm64-debug.apk --repo owen307/timecode-pro --clobber > release-upload.txt 2>&1
+          up=$?
+          echo "upload_exit=$up" >> release-upload.txt
+          gh release view v1.1.0 --repo owen307/timecode-pro --json id,draft,tagName,htmlUrl,assets,url > release-final.json 2> release-final.err || true
+          git config user.email "owen@theyarnells.com"
+          git config user.name "owen307"
+          git add release-view.json release-view.err release-create.txt release-publish.txt release-upload.txt release-final.json release-final.err 2>/dev/null || true
+          git commit -m "Record release publish result" || true
+          git push origin HEAD:main
